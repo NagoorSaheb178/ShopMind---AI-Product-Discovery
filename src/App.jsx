@@ -192,6 +192,22 @@ export default function App() {
           />
         </div>
 
+        {/* Mobile sort bar */}
+        {!hasAIResults && (
+          <div className="mobileSortBar">
+            <select
+              className="sortSelect mobileSortSelect"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="default">Sort by: Default</option>
+              <option value="price-asc">Price: Low to High</option>
+              <option value="price-desc">Price: High to Low</option>
+              <option value="rating">Top Rated</option>
+            </select>
+          </div>
+        )}
+
         {/* ── Hero ──────────────────────────────────────────────────── */}
         <section className="hero">
           <div className="heroText">
