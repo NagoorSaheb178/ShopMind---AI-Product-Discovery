@@ -41,7 +41,7 @@ JSON format (respond with this exact structure):
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "gemma2-9b-it", // Using Gemma 2 9B to avoid decommissioned models and rate limits
+        model: "llama3-8b-8192", // Using the standard stable Llama 3 8B model
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user",   content: userMessage },
