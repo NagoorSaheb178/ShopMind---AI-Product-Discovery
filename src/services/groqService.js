@@ -5,6 +5,21 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
   const apiKey = import.meta.env.VITE_GROQ_API_KEY?.trim();
   if (!apiKey) throw new Error("Groq API key is not configured.");
 
+  const queryLower = userQuery.trim().toLowerCase();
+  const allBrandsLower = [...new Set(products.map(p => p.brand.toLowerCase()))];
+  
+  // Fast path for exact brand matches
+  if (allBrandsLower.includes(queryLower)) {
+    const brandProducts = products.filter(p => p.brand.toLowerCase() === queryLower);
+    const result = {
+      recommendedIds: brandProducts.map(p => p.id),
+      explanation: `All ${brandProducts[0].brand} products.`,
+      reasoning: brandProducts.map(p => `Brand match for ${brandProducts[0].brand}`)
+    };
+    onChunk(JSON.stringify(result));
+    return result;
+  }
+
   // Extremely minimal token payload with cleanly separated numbers for the tokenizer
   const productSummary = products.map(p => 
     `ID:${p.id} PRICE:${p.price} NAME:${p.name} BRAND:${p.brand} DESC:${p.description}`
@@ -14,13 +29,13 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
 Return ONLY a JSON object — no extra text, no markdown.
 
 Rules:
-1. BRAND SEARCH: Return EVERY product for that brand.
+1. BRAND SEARCH: If the user query is a brand name (e.g. "samsung", "apple", "all samsung products"), you MUST return EVERY single product from that brand.
 2. CATEGORY SEARCH: Return ALL products in that category.
 3. PRICE SEARCH (CRITICAL): 
    * If user asks for "under X", check: is product price strictly less than X?
    * If product price >= X, DO NOT INCLUDE IT. ZERO EXCEPTIONS.
    * Example: "under 200" means price must be 199 or less. $249 or $449 are NOT under $200.
-4. EXACT ITEM SEARCH: If the user searches for a specific product by name (e.g. "a54"), return EXACTLY ONE product. Do not include accessories or similar items.
+4. EXACT ITEM SEARCH: If the user searches for a specific product by name (e.g. "samsung a54", "macbook air"), return ONLY that specific product. Do not include other products from the brand.
 5. If NOTHING matches, return [].
 
 JSON format:
@@ -125,9 +140,10 @@ JSON format:
   if (exactMatch) exactPrice = parseInt(exactMatch[1], 10);
 
   // Brand strict enforcement
-  const queryLower = userQuery.toLowerCase();
+  // We already calculated queryLower above, but let's re-use it or just use the existing logic
   const allBrands = [...new Set(products.map(p => p.brand.toLowerCase()))];
-  const mentionedBrands = allBrands.filter(b => queryLower.includes(b));
+  // Match whole words to avoid partial matches like "son" matching "sony"
+  const mentionedBrands = allBrands.filter(b => queryLower.match(new RegExp(`\\b${b}\\b`)));
 
   // Forcefully remove any AI recommendations that violate rules
   if (finalResult.recommendedIds && Array.isArray(finalResult.recommendedIds)) {
