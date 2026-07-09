@@ -1,62 +1,62 @@
+const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 export async function streamAIRecommendations(userQuery, products, onChunk, signal) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
-  if (!apiKey) throw new Error("Gemini API key is not configured. Please check your .env file.");
+  // We use VITE_GROQ_API_KEY for Groq
+  const apiKey = import.meta.env.VITE_GROQ_API_KEY?.trim();
+  if (!apiKey) throw new Error("Groq API key is not configured.");
 
-  const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
-
+  // Extremely minimal token payload to prevent hitting Groq's Tokens Per Minute (TPM) limit
   const productSummary = products.map(p => 
-    `[${p.id}] ${p.name} ($${p.price}, ${p.brand}) - ${p.description} Tags: ${p.tags.join(',')}`
+    `[${p.id}]${p.name}($${p.price},${p.brand})-${p.description}`
   ).join('\n');
 
   const systemPrompt = `You are a strict product recommendation assistant.
-Analyze the user query and return ONLY a JSON object — no markdown fences, no extra text.
+Return ONLY a JSON object — no extra text, no markdown.
 
 Rules:
-1. E-COMMERCE SEARCH BEHAVIOR:
-   - BRAND SEARCH (e.g., "google", "samsung", "apple"): You MUST return EVERY SINGLE PRODUCT in the catalogue that belongs to this brand. Do not leave any out! NEVER include competing brands.
-   - CATEGORY SEARCH (e.g., "phones", "tablets"): Return ALL products in that category.
-   - SPECIFIC PRODUCT SEARCH (e.g., "macbook", "a54"): Return ONLY that exact product. DO NOT include accessories or other models.
-   - FEATURE SEARCH (e.g., "ANC", "OLED"): Return products where the description or tags match the feature.
-   - PRICE SEARCH: 
-     * If "under X" or "less than X": Return EVERY SINGLE PRODUCT whose price is strictly less than X. Do not leave any out!
-     * If "exact cost X" or "for X": Return ONLY products whose price is exactly X. 
-     * You MUST do mathematical verification on every product.
-2. DO NOT add random filler products. If only 1 product matches, return an array with just 1 item.
-3. You can return as many products as genuinely match (no maximum limit).
-4. If NOTHING matches, return an empty array [].
-5. reasoning[] must have the same length as recommendedIds[].
+1. BRAND SEARCH: Return EVERY product for that brand.
+2. CATEGORY SEARCH: Return ALL products in that category.
+3. PRICE SEARCH: 
+   * "under X": Return EVERY product strictly < X.
+   * "exact X": Return ONLY products == X. 
+   * Do math verification.
+4. If NOTHING matches, return [].
 
-JSON format (respond with this exact structure):
+JSON format:
 {
-  "recommendedIds": [1, 2, 3],
-  "explanation": "Provide a brief explanation of the product or category the user is searching for (e.g. what it is, key benefits), followed by a friendly intro to your top picks.",
-  "reasoning": ["Why product 1 matches.", "Why product 2 matches.", "Why product 3 matches."]
+  "recommendedIds": [1, 2],
+  "explanation": "Brief explanation...",
+  "reasoning": ["Reason 1", "Reason 2"]
 }`;
 
-  const userMessage = `Query: "${userQuery}"\n\nCatalogue:\n${productSummary}`;
+  const userMessage = `Query: "${userQuery}"\nCatalog:\n${productSummary}`;
 
-  const doFetch = () =>
-    fetch(GEMINI_API_URL, {
+  const doFetch = (retrying = false) =>
+    fetch(GROQ_API_URL, {
       method: "POST",
       signal,
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey
+        "Authorization": `Bearer ${apiKey}`
       },
       body: JSON.stringify({
-        systemInstruction: {
-          parts: [{ text: systemPrompt }]
-        },
-        contents: [
-          { role: "user", parts: [{ text: userMessage }] }
+        model: "llama-3.1-8b-instant", // The official, active Llama 3.1 model on Groq
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user",   content: userMessage },
         ],
-        generationConfig: {
-          temperature: 0.1
-        }
+        temperature: 0.1,
+        stream: true,
       }),
     });
 
   let response = await doFetch();
+
+  if (response.status === 429 && !signal?.aborted) {
+    const retryAfter = parseInt(response.headers.get("retry-after") || "2", 10);
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+    response = await doFetch(true);
+  }
 
   if (!response.ok) {
     let msg = `Request failed (${response.status})`;
@@ -85,7 +85,7 @@ JSON format (respond with this exact structure):
         if (line.startsWith("data: ") && line.trim() !== "data: [DONE]") {
           try {
             const parsed = JSON.parse(line.slice(6));
-            const textDelta = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+            const textDelta = parsed.choices?.[0]?.delta?.content;
             if (textDelta) {
               accumulatedText += textDelta;
               if (!signal?.aborted) onChunk(accumulatedText);
@@ -100,7 +100,7 @@ JSON format (respond with this exact structure):
     reader.releaseLock();
   }
 
-  // Clean up any markdown code fences that Gemini might accidentally inject
+  // Clean up any stray markdown formatting the AI might add
   const cleanedText = accumulatedText.replace(/```json/gi, '').replace(/```/g, '').trim();
   
   if (signal?.aborted) return null;
