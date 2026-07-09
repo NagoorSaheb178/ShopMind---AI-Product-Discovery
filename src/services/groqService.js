@@ -1,8 +1,8 @@
-const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
-
 export async function streamAIRecommendations(userQuery, products, onChunk, signal) {
-  const apiKey = import.meta.env.VITE_GROQ_API_KEY;
-  if (!apiKey) throw new Error("API key is not configured. Please check your .env file.");
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  if (!apiKey) throw new Error("Gemini API key is not configured. Please check your .env file.");
+
+  const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse&key=${apiKey}`;
 
   const productSummary = products.map(p => 
     `[${p.id}] ${p.name} ($${p.price}, ${p.brand}) - ${p.description} Tags: ${p.tags.join(',')}`
@@ -17,7 +17,10 @@ Rules:
    - CATEGORY SEARCH (e.g., "phones", "tablets"): Return ALL products in that category.
    - SPECIFIC PRODUCT SEARCH (e.g., "macbook", "a54"): Return ONLY that exact product. DO NOT include accessories or other models.
    - FEATURE SEARCH (e.g., "ANC", "OLED"): Return products where the description or tags match the feature.
-   - PRICE SEARCH (e.g., "under $200"): STRICTLY exclude any product whose price is greater than the user's limit. Do mathematical verification.
+   - PRICE SEARCH: 
+     * If "under X" or "less than X": Return EVERY SINGLE PRODUCT whose price is strictly less than X. Do not leave any out!
+     * If "exact cost X" or "for X": Return ONLY products whose price is exactly X. 
+     * You MUST do mathematical verification on every product.
 2. DO NOT add random filler products. If only 1 product matches, return an array with just 1 item.
 3. You can return as many products as genuinely match (no maximum limit).
 4. If NOTHING matches, return an empty array [].
@@ -32,32 +35,27 @@ JSON format (respond with this exact structure):
 
   const userMessage = `Query: "${userQuery}"\n\nCatalogue:\n${productSummary}`;
 
-  const doFetch = (retrying = false) =>
-    fetch(GROQ_API_URL, {
+  const doFetch = () =>
+    fetch(GEMINI_API_URL, {
       method: "POST",
       signal,
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant", // Using the official active Llama 3.1 8B model
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user",   content: userMessage },
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents: [
+          { role: "user", parts: [{ text: userMessage }] }
         ],
-        temperature: 0.1,
-        stream: true,
+        generationConfig: {
+          temperature: 0.1
+        }
       }),
     });
 
   let response = await doFetch();
-
-  if (response.status === 429 && !signal?.aborted) {
-    const retryAfter = parseInt(response.headers.get("retry-after") || "3", 10);
-    await new Promise((r) => setTimeout(r, retryAfter * 1000));
-    response = await doFetch(true);
-  }
 
   if (!response.ok) {
     let msg = `Request failed (${response.status})`;
@@ -65,7 +63,6 @@ JSON format (respond with this exact structure):
       const body = await response.json();
       if (body.error?.message) msg = body.error.message;
     } catch (e) {}
-    if (response.status === 429) throw new Error("AI is busy (rate limited). Please wait a moment and try again.");
     throw new Error(msg);
   }
 
@@ -87,8 +84,9 @@ JSON format (respond with this exact structure):
         if (line.startsWith("data: ") && line.trim() !== "data: [DONE]") {
           try {
             const parsed = JSON.parse(line.slice(6));
-            if (parsed.choices?.[0]?.delta?.content) {
-              accumulatedText += parsed.choices[0].delta.content;
+            const textDelta = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (textDelta) {
+              accumulatedText += textDelta;
               if (!signal?.aborted) onChunk(accumulatedText);
             }
           } catch (e) {
@@ -100,4 +98,10 @@ JSON format (respond with this exact structure):
   } finally {
     reader.releaseLock();
   }
+
+  // Clean up any markdown code fences that Gemini might accidentally inject
+  const cleanedText = accumulatedText.replace(/```json/gi, '').replace(/```/g, '').trim();
+  
+  if (signal?.aborted) return null;
+  return JSON.parse(cleanedText);
 }
