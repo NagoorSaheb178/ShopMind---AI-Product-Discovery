@@ -34,6 +34,7 @@ Rules:
    - CATEGORY SEARCH (e.g., "phones", "tablets"): Return ALL products in that category.
    - SPECIFIC PRODUCT SEARCH (e.g., "macbook", "a54"): Return ONLY that exact product. DO NOT include accessories or other models.
    - FEATURE SEARCH (e.g., "ANC", "OLED"): Return products where the description or tags match the feature.
+   - PRICE SEARCH (e.g., "under $200"): STRICTLY exclude any product whose price is greater than the user's limit. Do mathematical verification.
 2. DO NOT add random filler products. If only 1 product matches, return an array with just 1 item.
 3. You can return as many products as genuinely match (no maximum limit).
 4. If NOTHING matches, return an empty array [].
@@ -57,7 +58,7 @@ JSON format (respond with this exact structure):
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "llama-3.1-8b-instant",
+        model: "llama3-70b-8192",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user",   content: userMessage },
