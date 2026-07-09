@@ -30,9 +30,10 @@ Analyze the user query and return ONLY a JSON object — no markdown fences, no 
 
 Rules:
 1. E-COMMERCE SEARCH BEHAVIOR:
-   - BRAND SEARCH (e.g., "samsung", "apple"): Return ALL products from that brand across all categories.
+   - BRAND SEARCH (e.g., "google", "samsung", "apple"): Return ONLY products where the brand exactly matches. NEVER include competing brands (e.g., if searching "google", DO NOT return Samsung).
    - CATEGORY SEARCH (e.g., "phones", "tablets"): Return ALL products in that category.
    - SPECIFIC PRODUCT SEARCH (e.g., "macbook", "a54"): Return ONLY that exact product. DO NOT include accessories or other models.
+   - FEATURE SEARCH (e.g., "ANC", "OLED"): Return products where the description or tags match the feature.
 2. DO NOT add random filler products. If only 1 product matches, return an array with just 1 item.
 3. You can return as many products as genuinely match (no maximum limit).
 4. If NOTHING matches, return an empty array [].
