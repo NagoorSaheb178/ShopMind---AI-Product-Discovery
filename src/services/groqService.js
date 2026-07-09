@@ -1,26 +1,9 @@
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 
-/**
- * Streams AI product recommendations.
- *
- * Key reliability fixes:
- *  - Uses AbortController so the caller can cancel an in-flight request
- *  - Maintains a line-buffer across raw byte chunks (SSE lines can span chunks)
- *  - Retries once on 429 (rate-limit) after the server's Retry-After delay
- *  - Throws user-friendly errors on all failure paths
- *  - Cleans up the reader on abort/error
- *
- * @param {string}   userQuery
- * @param {Array}    products
- * @param {Function} onChunk   – called with accumulated JSON text on every token
- * @param {AbortSignal} [signal] – pass an AbortController.signal to cancel
- */
 export async function streamAIRecommendations(userQuery, products, onChunk, signal) {
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("API key is not configured. Please check your .env file.");
 
-  // Condense catalog into a highly token-efficient string format
-  // This drastically reduces token usage so we don't hit the strict TPM rate limit
   const productSummary = products.map(p => 
     `[${p.id}] ${p.name} ($${p.price}, ${p.brand}) - ${p.description} Tags: ${p.tags.join(',')}`
   ).join('\n');
@@ -58,20 +41,18 @@ JSON format (respond with this exact structure):
         Authorization: `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: "mixtral-8x7b-32768",
+        model: "gemma2-9b-it", // Using Gemma 2 9B to avoid decommissioned models and rate limits
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user",   content: userMessage },
         ],
-        temperature: 0.3,
-        max_tokens: 800,
+        temperature: 0.1,
         stream: true,
       }),
     });
 
   let response = await doFetch();
 
-  // Handle rate-limit: wait for Retry-After then try once more
   if (response.status === 429 && !signal?.aborted) {
     const retryAfter = parseInt(response.headers.get("retry-after") || "3", 10);
     await new Promise((r) => setTimeout(r, retryAfter * 1000));
@@ -82,88 +63,41 @@ JSON format (respond with this exact structure):
     let msg = `Request failed (${response.status})`;
     try {
       const body = await response.json();
-      if (body?.error?.message) msg = body.error.message;
-    } catch { /* ignore */ }
+      if (body.error?.message) msg = body.error.message;
+    } catch (e) {}
+    if (response.status === 429) throw new Error("AI is busy (rate limited). Please wait a moment and try again.");
     throw new Error(msg);
   }
 
-  // ── SSE stream reader ─────────────────────────────────────────────────
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8");
-  let accumulated = "";
-  let lineBuffer = ""; // holds partial lines across byte chunks
+  let accumulatedText = "";
+  let lineBuffer = "";
 
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
-      // Append raw text to lineBuffer, then process complete lines
+      
       lineBuffer += decoder.decode(value, { stream: true });
-
-      // Split on newlines but keep any trailing partial line in the buffer
-      const lines = lineBuffer.split("\n");
-      lineBuffer = lines.pop(); // last element may be incomplete
-
+      const lines = lineBuffer.split('\n');
+      lineBuffer = lines.pop(); // keep the incomplete line
+      
       for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed || trimmed === "data: [DONE]") continue;
-        if (!trimmed.startsWith("data: ")) continue;
-
-        try {
-          const json = JSON.parse(trimmed.slice(6));
-          const delta = json.choices?.[0]?.delta?.content;
-          if (delta) {
-            accumulated += delta;
-            onChunk(accumulated);
+        if (line.startsWith("data: ") && line.trim() !== "data: [DONE]") {
+          try {
+            const parsed = JSON.parse(line.slice(6));
+            if (parsed.choices?.[0]?.delta?.content) {
+              accumulatedText += parsed.choices[0].delta.content;
+              if (!signal?.aborted) onChunk(accumulatedText);
+            }
+          } catch (e) {
+            // Ignore parse errors on incomplete JSON chunks
           }
-        } catch {
-          // JSON parse failed for this line — safe to skip
         }
       }
     }
-
-    // Process any remaining buffered text
-    if (lineBuffer.trim().startsWith("data: ")) {
-      try {
-        const json = JSON.parse(lineBuffer.trim().slice(6));
-        const delta = json.choices?.[0]?.delta?.content;
-        if (delta) { accumulated += delta; onChunk(accumulated); }
-      } catch { /* ignore */ }
-    }
-
-  } catch (err) {
-    reader.cancel().catch(() => {});
-    if (err.name === "AbortError") return null; // caller cancelled — not an error
-    throw err;
   } finally {
     reader.releaseLock();
   }
-
-  if (!accumulated.trim()) throw new Error("Empty response. Please try again.");
-
-  // ── Parse final JSON ──────────────────────────────────────────────────
-  let jsonStr = accumulated.trim();
-  // Strip accidental markdown fences the model might add despite instructions
-  jsonStr = jsonStr.replace(/^```(?:json)?\n?/i, "").replace(/\n?```$/i, "").trim();
-
-  // Extract the first {...} block in case the model added any preamble
-  const braceStart = jsonStr.indexOf("{");
-  const braceEnd   = jsonStr.lastIndexOf("}");
-  if (braceStart !== -1 && braceEnd !== -1) {
-    jsonStr = jsonStr.slice(braceStart, braceEnd + 1);
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(jsonStr);
-  } catch {
-    throw new Error("Could not parse AI response. Please try again.");
-  }
-
-  return {
-    recommendedIds: Array.isArray(parsed.recommendedIds) ? parsed.recommendedIds : [],
-    explanation:    typeof parsed.explanation === "string" ? parsed.explanation : "Here are your recommendations.",
-    reasoning:      Array.isArray(parsed.reasoning) ? parsed.reasoning : [],
-  };
 }
