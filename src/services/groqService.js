@@ -5,9 +5,9 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
   const apiKey = import.meta.env.VITE_GROQ_API_KEY?.trim();
   if (!apiKey) throw new Error("Groq API key is not configured.");
 
-  // Extremely minimal token payload to prevent hitting Groq's Tokens Per Minute (TPM) limit
+  // Extremely minimal token payload with cleanly separated numbers for the tokenizer
   const productSummary = products.map(p => 
-    `[${p.id}]${p.name}($${p.price},${p.brand})-${p.description}`
+    `ID:${p.id} PRICE:${p.price} NAME:${p.name} BRAND:${p.brand} DESC:${p.description}`
   ).join('\n');
 
   const systemPrompt = `You are a strict product recommendation assistant.
