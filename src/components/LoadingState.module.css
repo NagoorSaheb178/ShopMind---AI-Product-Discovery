@@ -1,0 +1,120 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  padding: 40px 0;
+}
+
+.spinner {
+  position: relative;
+  width: 52px;
+  height: 52px;
+}
+
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2.5px solid transparent;
+  animation: spin 1.4s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+}
+
+.ring:nth-child(1) {
+  border-top-color: #c8843c;
+  animation-delay: -0.45s;
+}
+
+.ring:nth-child(2) {
+  border-top-color: #e6a54a;
+  animation-delay: -0.3s;
+  inset: 8px;
+}
+
+.ring:nth-child(3) {
+  border-top-color: #f5c880;
+  animation-delay: -0.15s;
+  inset: 16px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.messages {
+  position: relative;
+  height: 24px;
+  overflow: hidden;
+  width: 260px;
+  text-align: center;
+}
+
+.message {
+  position: absolute;
+  left: 0;
+  right: 0;
+  font-size: 14px;
+  color: #9e8f82;
+  animation: fadeText 3.2s ease infinite;
+  opacity: 0;
+}
+
+@keyframes fadeText {
+  0%   { opacity: 0; transform: translateY(8px); }
+  10%  { opacity: 1; transform: translateY(0); }
+  70%  { opacity: 1; transform: translateY(0); }
+  85%  { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+.skeleton {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+.skeletonCard {
+  background: #f5f0ea;
+  border-radius: 16px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 0.9; }
+}
+
+.skeletonHeader {
+  height: 48px;
+  background: #e8e2d8;
+  border-radius: 10px;
+}
+
+.skeletonLine {
+  height: 14px;
+  background: #e8e2d8;
+  border-radius: 7px;
+  width: 100%;
+}
+
+.skeletonFooter {
+  height: 36px;
+  background: #e8e2d8;
+  border-radius: 10px;
+  margin-top: 8px;
+}
+
+@media (max-width: 768px) {
+  .skeleton {
+    grid-template-columns: 1fr;
+  }
+  .skeletonCard:nth-child(n + 2) {
+    display: none;
+  }
+}

@@ -1,0 +1,171 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+.form {
+  width: 100%;
+}
+
+/* ── main input container ─────────────── */
+.inputWrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #ddd8d0;
+  border-radius: 14px;
+  padding: 6px 8px 6px 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.inputWrapFocused {
+  border-color: #a89580;
+  box-shadow: 0 0 0 3px rgba(168, 149, 128, 0.14);
+}
+
+.inputWrapActive {
+  border-color: #c8843c;
+  box-shadow: 0 0 0 3px rgba(200, 132, 60, 0.12);
+}
+
+/* ── search/spinner icon ──────────────── */
+.icon {
+  color: #a89580;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.iconSpin {
+  color: #c8843c;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── text input ───────────────────────── */
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-family: "Inter", sans-serif;
+  font-size: 15px;
+  color: #1a1410;
+  padding: 8px 0;
+  min-width: 0;
+}
+
+.input::placeholder {
+  color: #b8afa6;
+}
+
+/* ── live AI badge ────────────────────── */
+.liveTag {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: #fff;
+  background: linear-gradient(135deg, #c8843c, #e6a54a);
+  border-radius: 6px;
+  padding: 3px 7px;
+  animation: liveTagPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes liveTagPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+
+/* ── clear button ─────────────────────── */
+.clearBtn {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #b8afa6;
+  padding: 6px;
+  border-radius: 50%;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.clearBtn:hover {
+  color: #5c4e42;
+  background: #f0ece5;
+}
+
+/* ── submit button ────────────────────── */
+.submitBtn {
+  flex-shrink: 0;
+  background: #1a1410;
+  color: #faf8f5;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 20px;
+  font-family: "Inter", sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.15s, opacity 0.2s;
+  white-space: nowrap;
+}
+.submitBtn:hover:not(:disabled) {
+  background: #000;
+  transform: translateY(-1px);
+}
+.submitBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+.submitBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── suggestion chips ─────────────────── */
+.chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chipsLabel {
+  font-size: 12px;
+  color: #a89580;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.chip {
+  background: #f5f0ea;
+  border: 1px solid #e0dbd2;
+  border-radius: 20px;
+  padding: 5px 13px;
+  font-size: 12px;
+  color: #6b5c50;
+  cursor: pointer;
+  font-family: "Inter", sans-serif;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.chip:hover {
+  background: #ece6dc;
+  border-color: #c0b8ae;
+  color: #1a1410;
+}
+
+/* ── responsive ───────────────────────── */
+@media (max-width: 580px) {
+  .inputWrap { padding: 5px 6px 5px 12px; }
+  .input { font-size: 14px; }
+  .submitBtn { padding: 9px 14px; }
+  .chips { display: none; }
+}
