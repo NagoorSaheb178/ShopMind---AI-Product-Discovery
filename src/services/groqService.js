@@ -32,9 +32,9 @@ Rules:
 1. BRAND SEARCH: If the user query is a brand name (e.g. "samsung", "apple", "all samsung products"), you MUST return EVERY single product from that brand.
 2. CATEGORY SEARCH: Return ALL products in that category.
 3. PRICE SEARCH (CRITICAL): 
-   * If user asks for "under X", check: is product price strictly less than X?
+   * If user asks for "under X" or "below X", check: is product price strictly less than X?
    * If product price >= X, DO NOT INCLUDE IT. ZERO EXCEPTIONS.
-   * Example: "under 200" means price must be 199 or less. $249 or $449 are NOT under $200.
+   * You MUST return EVERY SINGLE product in the catalog that fits the user's criteria. Do NOT limit to just 1 or 2 items. Return all of them.
 4. EXACT ITEM SEARCH: If the user searches for a specific product by name (e.g. "samsung a54", "macbook air"), return ONLY that specific product. Do not include other products from the brand.
 5. If NOTHING matches, return [].
 
