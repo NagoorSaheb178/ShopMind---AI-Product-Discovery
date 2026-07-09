@@ -236,6 +236,18 @@
 .mobileCategoryBar::-webkit-scrollbar { display: none; }
 
 /* =====================================================
+   MOBILE SORT BAR
+   ===================================================== */
+.mobileSortBar {
+  display: none;
+  margin-bottom: 16px;
+}
+
+.mobileSortSelect {
+  width: 100%;
+}
+
+/* =====================================================
    HERO
    ===================================================== */
 .hero {
@@ -459,6 +471,7 @@
   .main { padding: 0 10px 60px; }
   .topHeader { display: flex; }
   .mobileCategoryBar { display: flex; }
+  .mobileSortBar { display: block; }
   .hero { padding: 20px 0 20px; }
   .productsGrid {
     grid-template-columns: repeat(3, 1fr);
