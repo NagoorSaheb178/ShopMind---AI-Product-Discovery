@@ -19,9 +19,11 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
   const apiKey = import.meta.env.VITE_GROQ_API_KEY;
   if (!apiKey) throw new Error("API key is not configured. Please check your .env file.");
 
-  const productSummary = products.map(({ id, name, category, price, rating, brand, tags, description, inStock }) => ({
-    id, name, category, price, rating, brand, tags, description, inStock,
-  }));
+  // Condense catalog into a highly token-efficient string format
+  // This drastically reduces token usage so we don't hit the strict TPM rate limit
+  const productSummary = products.map(p => 
+    `[${p.id}] ${p.name} ($${p.price}, ${p.brand}) - ${p.description} Tags: ${p.tags.join(',')}`
+  ).join('\n');
 
   const systemPrompt = `You are a product recommendation assistant.
 Analyze the user query and return ONLY a JSON object — no markdown fences, no extra text.
@@ -39,7 +41,7 @@ JSON format (respond with this exact structure):
   "reasoning": ["Why product 1 matches.", "Why product 2 matches.", "Why product 3 matches."]
 }`;
 
-  const userMessage = `Query: "${userQuery}"\n\nCatalogue:\n${JSON.stringify(productSummary)}`;
+  const userMessage = `Query: "${userQuery}"\n\nCatalogue:\n${productSummary}`;
 
   const doFetch = (retrying = false) =>
     fetch(GROQ_API_URL, {
