@@ -16,10 +16,10 @@ Return ONLY a JSON object — no extra text, no markdown.
 Rules:
 1. BRAND SEARCH: Return EVERY product for that brand.
 2. CATEGORY SEARCH: Return ALL products in that category.
-3. PRICE SEARCH: 
-   * "under X": Return EVERY product strictly < X.
-   * "exact X": Return ONLY products == X. 
-   * Do math verification.
+3. PRICE SEARCH (CRITICAL): 
+   * If user asks for "under X", check: is product price strictly less than X?
+   * If product price >= X, DO NOT INCLUDE IT. ZERO EXCEPTIONS.
+   * Example: "under 200" means price must be 199 or less. $249 or $449 are NOT under $200.
 4. If NOTHING matches, return [].
 
 JSON format:
