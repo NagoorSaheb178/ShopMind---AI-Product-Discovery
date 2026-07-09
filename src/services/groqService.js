@@ -29,12 +29,14 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
 Analyze the user query and return ONLY a JSON object — no markdown fences, no extra text.
 
 Rules:
-1. EXTREME STRICTNESS: You MUST ONLY return products that EXACTLY match the user's intent.
-2. DO NOT add random products just to fill up space. If only 1 product matches, return an array with ONLY 1 item (e.g. [6]).
-3. If the user searches for a specific brand or item (e.g., "macbook" or "apple"), DO NOT return items from other brands (like Samsung) or unrelated categories (like cameras or tablets).
-4. DO NOT recommend accessories unless explicitly asked for.
-5. If NOTHING matches, return an empty array [].
-6. reasoning[] must have the same length as recommendedIds[].
+1. E-COMMERCE SEARCH BEHAVIOR:
+   - BRAND SEARCH (e.g., "samsung", "apple"): Return ALL products from that brand across all categories.
+   - CATEGORY SEARCH (e.g., "phones", "tablets"): Return ALL products in that category.
+   - SPECIFIC PRODUCT SEARCH (e.g., "macbook", "a54"): Return ONLY that exact product. DO NOT include accessories or other models.
+2. DO NOT add random filler products. If only 1 product matches, return an array with just 1 item.
+3. You can return as many products as genuinely match (no maximum limit).
+4. If NOTHING matches, return an empty array [].
+5. reasoning[] must have the same length as recommendedIds[].
 
 JSON format (respond with this exact structure):
 {
