@@ -1,5 +1,5 @@
 export async function streamAIRecommendations(userQuery, products, onChunk, signal) {
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY;
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY?.trim();
   if (!apiKey) throw new Error("Gemini API key is not configured. Please check your .env file.");
 
   const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?alt=sse`;
