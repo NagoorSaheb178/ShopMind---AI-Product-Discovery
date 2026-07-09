@@ -8,7 +8,7 @@ import AIResultsPanel from "./components/AIResultsPanel";
 import LoadingState from "./components/LoadingState";
 import "./App.css";
 
-const DEBOUNCE_MS = 1500; // Increased to 1.5s to avoid hitting Groq API rate limits
+const DEBOUNCE_MS = 800; // Lowered to feel more real-time, now that payload is smaller
 
 export default function App() {
   const [query, setQuery]               = useState("");
