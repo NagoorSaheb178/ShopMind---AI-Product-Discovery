@@ -20,7 +20,8 @@ Rules:
    * If user asks for "under X", check: is product price strictly less than X?
    * If product price >= X, DO NOT INCLUDE IT. ZERO EXCEPTIONS.
    * Example: "under 200" means price must be 199 or less. $249 or $449 are NOT under $200.
-4. If NOTHING matches, return [].
+4. EXACT ITEM SEARCH: If the user searches for a specific product by name (e.g. "a54"), return EXACTLY ONE product. Do not include accessories or similar items.
+5. If NOTHING matches, return [].
 
 JSON format:
 {
@@ -104,5 +105,57 @@ JSON format:
   const cleanedText = accumulatedText.replace(/```json/gi, '').replace(/```/g, '').trim();
   
   if (signal?.aborted) return null;
-  return JSON.parse(cleanedText);
+  
+  let finalResult;
+  try {
+    finalResult = JSON.parse(cleanedText);
+  } catch(e) {
+    throw new Error("AI returned invalid data format.");
+  }
+
+  // --- BULLETPROOF JAVASCRIPT MATH FILTER ---
+  // Small LLMs hallucinate math. We intercept the query here and force the math check in JS.
+  let maxPrice = Infinity;
+  let exactPrice = null;
+  
+  const underMatch = userQuery.match(/(?:under|less than|below)\s*\$?(\d+)/i);
+  if (underMatch) maxPrice = parseInt(underMatch[1], 10);
+  
+  const exactMatch = userQuery.match(/(?:exact|exactly|for)\s*\$?(\d+)/i);
+  if (exactMatch) exactPrice = parseInt(exactMatch[1], 10);
+
+  // Brand strict enforcement
+  const queryLower = userQuery.toLowerCase();
+  const allBrands = [...new Set(products.map(p => p.brand.toLowerCase()))];
+  const mentionedBrands = allBrands.filter(b => queryLower.includes(b));
+
+  // Forcefully remove any AI recommendations that violate rules
+  if (finalResult.recommendedIds && Array.isArray(finalResult.recommendedIds)) {
+    const validIds = [];
+    const validReasonings = [];
+    
+    finalResult.recommendedIds.forEach((id, index) => {
+      const product = products.find(p => p.id === id);
+      if (!product) return;
+      
+      // Math enforcement
+      if (exactPrice !== null && product.price !== exactPrice) return;
+      if (product.price >= maxPrice) return;
+      
+      // Brand enforcement (if a brand is mentioned, ONLY allow that brand)
+      if (mentionedBrands.length > 0) {
+        if (!mentionedBrands.includes(product.brand.toLowerCase())) return;
+      }
+      
+      validIds.push(id);
+      if (finalResult.reasoning && finalResult.reasoning[index]) {
+        validReasonings.push(finalResult.reasoning[index]);
+      }
+    });
+    
+    finalResult.recommendedIds = validIds;
+    finalResult.reasoning = validReasonings;
+  }
+
+  return finalResult;
 }
