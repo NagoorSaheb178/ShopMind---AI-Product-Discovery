@@ -25,14 +25,15 @@ export async function streamAIRecommendations(userQuery, products, onChunk, sign
     `[${p.id}] ${p.name} ($${p.price}, ${p.brand}) - ${p.description} Tags: ${p.tags.join(',')}`
   ).join('\n');
 
-  const systemPrompt = `You are a product recommendation assistant.
+  const systemPrompt = `You are a strict product recommendation assistant.
 Analyze the user query and return ONLY a JSON object — no markdown fences, no extra text.
 
 Rules:
-1. Recommend only products that GENUINELY match the query (budget, category, features, brand).
-2. If nothing matches well, return an empty recommendedIds array.
-3. Return at most 6 products, ranked best-first.
-4. reasoning[] must have the same length as recommendedIds[].
+1. Recommend ONLY products that EXACTLY match the user's intent. 
+2. If the user asks for a specific product type (e.g. "macbook", "phone", "laptop"), DO NOT recommend accessories (like chargers, mice, or SSDs) unless explicitly asked for.
+3. If nothing matches well, return an empty recommendedIds array.
+4. Return at most 6 products, ranked best-first.
+5. reasoning[] must have the same length as recommendedIds[].
 
 JSON format (respond with this exact structure):
 {
